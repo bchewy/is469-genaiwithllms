@@ -1,0 +1,514 @@
+# Origami GPU Cluster
+
+> Documentation for the Origami GPU Cluster at SMU. The cluster is a computing resource for submitting intensive computational workloads. GPUs accelerate processing by breaking tasks into smaller components executed in parallel. Users submit jobs through a login node; execution occurs immediately or enters a queue based on resource availability.
+
+Requirements: SMU Network access or VPN connectivity.
+Cluster resources: https://docs.google.com/spreadsheets/d/1LmPORRiEdY3rmqNtBJvg0K2S78b-zLgB7GSX95JYhFI/edit?usp=sharing (requires SMU credentials)
+
+## Logging In
+
+To use the cluster, obtain an account by reaching out to your instructor with an access request.
+
+Prerequisites:
+- ClearPass Network Access -- A functioning ClearPass installation is mandatory. Download from IITS at the support portal.
+- DNS Configuration -- Any custom DNS settings (such as 1.1.1.1 or 8.8.8.8) must be removed before attempting connection.
+
+Connection (Windows users should use PowerShell, not Command Prompt):
+1. Open Terminal or PowerShell
+2. Connect via SSH: ssh <accountname>@origami.smu.edu.sg
+3. Confirm host authenticity by typing "yes"
+4. Enter the provided password (input remains hidden)
+5. Change your password when prompted -- enter current password first, then new password
+6. After logout, reconnect using the same SSH command
+7. Login with your newly created password
+
+To change your password while logged in: run `passwd`, type new password (hidden), confirm by entering again.
+
+## Partitions
+
+Community Partitions:
+- student: Undergraduate and postgraduate students
+- project: UG/PG students working on project assignments
+- researchlong: Researchers (up to 5-day max runtime)
+- researchshort: Researchers (up to 2-day max runtime)
+
+Priority Partitions:
+- priority: Research teams who contributed GPU nodes to the cluster
+
+Community partitions incorporate GPU resources from priority partitions. Users accessing community queues may experience job preemption when higher-priority work requires resources.
+
+Job Preemption: Your job may be stopped to free up resources for higher-priority tasks. Community queue jobs are stopped first when resources are insufficient.
+
+Quality of Service (QOS) quotas:
+- student: 4 CPU cores, 16 GB RAM, 1 GPU, 1 day max
+- project: 30 CPU cores, 30 GB RAM, 1 GPU, 1 day max
+- research-1-qos: 10 CPU cores, 128 GB RAM, 2 GPUs, 5 days max
+- priority: Unlimited CPU/RAM, Any GPU, 5 days max
+
+Use the `myinfo` command on the server to check your account's partition and QOS assignments.
+
+## Starter Jobs
+
+Walkthrough for submitting your first job using a tensor addition sample.
+
+Files needed:
+- Add2D.py -- the executable job code
+- sbatchAdd2D.sh -- shell script for job submission
+
+Configuration: Edit the sbatch script (lines 29-32) to insert partition name, account credentials, QOS designation, and email address. Use `myinfo` to retrieve these values.
+
+File Transfer: scp <local_filepath> <username>@origami.smu.edu.sg:~
+
+Job Submission:
+```
+chmod +x sbatchAdd2D.sh
+sbatch sbatchAdd2D.sh
+```
+
+## Job Logs
+
+Job logs capture return values and print values generated during execution. Files are stored in the directory where the sbatch command was run.
+
+Log Structure:
+- Part 1: Setting Up -- Documents module loading and environmental variable initialization
+- Part 2: Standard Output and Error -- Captures all job outputs including print statements, return values, and error messages
+- Part 3: Job Report -- Summarizes execution outcome, including failure reasons
+
+Common Failure Scenarios:
+- Erroneous code (e.g., wrong module name capitalization)
+- Insufficient memory (#SBATCH --mem=1MB causes termination when memory exhausts)
+- Insufficient time (#SBATCH --time=00-00:01:00 causes timeout)
+
+Optimizing Resource Requests:
+- Target efficiency: 80-90% for both CPU and memory
+- Benefits: Demonstrates resource stewardship, reduces queue wait times
+
+## Transfer Files
+
+Methods for transferring files:
+
+Git (Recommended): Host your project on a git repository and use `git clone` to place the project into your home directory.
+
+WinSCP (Windows Only): Graphical interface for file transfer. Launch the application, enter username/password, click login. Accept the host key cache prompt. Drag files from local (left pane) to remote (right pane).
+
+SCP (Secure Copy):
+Local to Cluster:
+- Single file: scp /path/to/file <username>@origami.smu.edu.sg:~/path/to/destination
+- Folder: scp -r /path/to/folder <username>@origami.smu.edu.sg:~/path/to/destination
+
+Cluster to Local:
+- Single file: scp <username>@origami.smu.edu.sg:~/path/to/file /path/to/destination
+- Folder: scp -r <username>@origami.smu.edu.sg:~/path/to/folder /path/to/destination
+
+## Module System
+
+The module system addresses varying software requirements across courses, enabling users to select from multiple software versions. It automatically loads necessary dependencies -- for instance, `module load cuDNN` will also load the appropriate CUDA library. Python 3 loads automatically upon cluster login.
+
+Core Commands:
+- module list: View loaded modules
+- module available: View all available modules
+- module avail <name>: Search modules by name (case-sensitive)
+- module spider <name>: Check all versions of a specific module
+- module load <name>: Load a module
+- module unload <name>: Unload a module
+- module purge: Clear all modules
+
+Module Collections:
+- module save <name>: Save current modules as a collection
+- module restore <name>: Restore modules from a collection
+- module savelist: List all saved collections
+- module describe <name>: View collection contents
+- module disable <name>: Remove a collection
+
+## Dependencies
+
+TensorFlow 2.17 requires: Python 3.9-3.12, cuDNN 8.9, CUDA 12.3.
+
+TensorFlow module configuration (insert after line 52 in sbatch script):
+```
+module purge
+module load Python/3.11.7
+module load cuDNN/8.9.7.29-CUDA-12.3.2
+```
+
+PyTorch installation: pip3 install torch torchvision torchaudio
+
+PyTorch module configuration (insert after line 52 in sbatch script):
+```
+module purge
+module load Python/3.11.7
+module load CUDA/12.4.0
+```
+
+## Job Submission (Conda)
+
+Warning: Avoid running `conda init` permanently. Instead, after loading Anaconda3 via `module load Anaconda3`, execute `eval "$(conda shell.bash hook)"`.
+
+Note: The researchlong queue preempts jobs when resources are insufficient. Add `#SBATCH --requeue` to auto-resubmit preempted jobs.
+
+Converting Jupyter Notebooks:
+- Jupyter interface: File > Download As > Python
+- Command line: jupyter nbconvert --to script <NOTEBOOK NAME>.ipynb
+
+Prerequisites:
+1. SSH access to the cluster established
+2. Project files transferred to the cluster
+3. Downloaded the conda job submission shell script template
+
+Obtaining Account Info:
+1. Log into the GPU cluster
+2. Run `myinfo`
+3. Record: Account name, Assigned Partition, Assigned QOS
+
+Template Parameters:
+- Line 26: --partition (e.g., #SBATCH --partition=tester)
+- Line 27: --account (e.g., #SBATCH --account=is000)
+- Line 28: --qos (e.g., #SBATCH --qos=is000qos)
+- Line 29: --mail-user (e.g., #SBATCH --mail-user=user@scis.smu.edu.sg)
+- Line 30: --job-name (e.g., #SBATCH --job-name=YourName)
+
+Loading Modules:
+```
+module purge
+module load Anaconda3/2022.05
+```
+
+Virtual Environment Setup:
+Create (first run only): conda create -n myenvnamehere
+Activate (every run): conda activate myenvnamehere
+Install packages: conda install pytorch torchvision torchaudio -c pytorch
+
+Script Execution: srun --gres=gpu:1 python3 <file path>/myScript.py
+
+Submitting:
+```
+chmod +x sbatchTemplatePython.sh
+sbatch sbatchTemplatePython.sh
+```
+
+Output appears as <USERNAME>.<JOBID>.out in the execution directory.
+
+Useful Commands:
+- myqueue: Check job status
+- myjob <jobid>: View job details
+- mypastjob <days>: View job history (max 30 days)
+
+## Job Submission (pip3)
+
+Note: The researchlong queue preempts jobs when resources are insufficient. Add `#SBATCH --requeue` for automatic resubmission.
+
+Module Selection:
+
+For TensorFlow:
+```
+module purge
+module load Python/3.11.7
+module load cuDNN/8.9.7.29-CUDA-12.3.2
+```
+
+For PyTorch:
+```
+module purge
+module load Python/3.11.7
+module load CUDA/12.4.0
+```
+
+Virtual Environment Setup:
+Create (first run only): python3.11 -m venv ~/myenv
+Activate before each use: source ~/myenv/bin/activate
+Install packages: pip3 install numpy scikit
+
+Script Execution: srun --gres=gpu:1 python3 <file path>/myScript.py
+
+Submitting:
+```
+chmod +x sbatchTemplatePython.sh
+sbatch sbatchTemplatePython.sh
+```
+
+Output file format: <USERNAME>.<JOBID>.out
+
+## Containers
+
+The cluster uses `enroot` for container support. Enroot uses the same underlying technologies as Docker but without the isolation.
+
+Download Container Image:
+```
+srun --partition=student --mem=2G --cpus-per-task=4 enroot import docker://tensorflow/tensorflow:latest-gpu
+```
+This generates a .sqsh file (e.g., tensorflow+tensorflow+latest-gpu.sqsh).
+
+Create Container:
+```
+srun --partition=student --mem=2G --cpus-per-task=10 enroot create --name tensorflow "tensorflow+tensorflow+latest-gpu.sqsh"
+```
+Verify with: enroot list
+Tip: Remove the .sqsh file afterward to preserve home directory space.
+
+Using the Container:
+Interactive (srun): srun --pty --partition=tester --mem=8G --cpus-per-task=4 --gres=gpu:1 enroot start tensorflow bash
+Batch Job (sbatch): Mount the home directory as /tf within the container and execute a Python script with GPU allocation using an sbatch script.
+
+Removing Containers: enroot remove <container_name>
+
+## Selecting GPUs
+
+Method 1: Mandatory GPU Selection
+Use --constraint when a particular GPU model is required. The job stays queued until the specified GPU is available.
+#SBATCH --constraint=a40
+
+Method 2: Optional GPU Selection
+Use --prefer when GPU preference is flexible. Alternative resources are assigned if the preferred GPU is unavailable.
+#SBATCH --prefer=a40
+
+Using Operators:
+- | (OR) -- request either GPU type
+- & (AND) -- require multiple conditions
+
+Example requesting H100 or H100 NVL:
+srun -p researchlong -c 4 --mem=8gb --gres=gpu:1 --constraint="h100|h100nvl" nvidia-smi
+
+Nopreempt Examples:
+- Non-preemptive node only: #SBATCH --constraint="nopreempt"
+- Non-preemptive with L40S GPUs: #SBATCH --constraint="nopreempt&l40s"
+- Non-preemptive with L40S or V100: #SBATCH --constraint="nopreempt&v100|l40s"
+
+## Monitoring GPU Metrics
+
+nvidia-smi is unavailable on the login node since GPUs aren't present there.
+
+Method 1: Batch Script Monitoring (Recommended)
+Add monitoring parameters to your batch script before your main workload:
+```
+source ~/myenv/bin/activate
+srun whichgpu
+srun --gres=gpu:1 python /path/to/your/python/script.py
+```
+With the node name and GPU number identified, access the Grafana dashboard (accessible via SMU network or VPN) to review utilization statistics.
+
+Method 2: SSH into Compute Node
+Note: Discouraged when multiple jobs run simultaneously, as SSH randomly selects a job.
+1. Run myqueue to list active jobs
+2. Locate the node name in the NODELIST(REASON) column
+3. SSH into the identified node
+4. Run nvidia-smi to view real-time metrics
+
+## Interactive Console
+
+The Interactive Console enables a direct connection to the GPU cluster for troubleshooting and interactive work. The session requires continuous connectivity -- disconnection results in session loss and unsaved work disappearing.
+
+Requesting an Interactive GPU Session:
+srun --pty --qos=<QOS-NAME> --partition=<PARTITION-ASSIGNED> --gres=gpu:1 -c=<CORE-COUNT> --mem=<MEMORY-NEEDED> bash
+
+Note: There is no need to supply a QOS for prioritized queues.
+
+Example:
+```
+[IS000G3@origami ~]$ srun --pty --qos=research-1-qos --partition=researchshort --gres=gpu:1 -c 10 --mem=64GB bash
+[IS000G3@amigo ~]$ nvidia-smi
+```
+The hostname transition from origami to amigo confirms successful GPU allocation.
+
+Launching Notebooks from Interactive Session:
+jupyter notebook --no-browser --ip=0.0.0.0 --port=<RANDOM PORT BETWEEN 50000 and 65000>
+
+Establishing SSH Tunnel (from local machine):
+ssh -N -vv -L <PORT>:<NODENAME>:<PORT> <USERNAME>@origami.smu.edu.sg
+
+Example:
+ssh -N -vv -L 53426:amigo:53426 IS000G3@origami.smu.edu.sg
+
+Keep the terminal window open throughout your session.
+
+## Jupyter Notebook
+
+The `mynotebook` command provisions a Jupyter notebook on the cluster. Notebooks run for up to 6 hours before requiring a relaunch. For extended tasks, use `execnotebook` instead.
+
+Provisioning Steps:
+1. Run mynotebook on the Origami cluster
+2. Provide an SMU email address for start/end notifications
+3. Choose between CPU-only or GPU-enabled notebooks
+4. Select from TensorFlow, PyTorch, or Python 3.11.7 base installation
+5. Establish SSH tunnel: ssh -N -vv -L 8924:10.2.1.60:8924 exampleuser@origami.smu.edu.sg
+6. Navigate to the provided localhost URL with authentication token
+7. Use scancel to release resources when finished
+
+Limited Availability: If no GPUs are currently available, GPU notebook requests will not be fulfilled.
+
+Installing Packages (within notebook, prefix with !):
+!pip3 install torch
+!pip3 install numpy
+
+Reconnecting: cat juypterReconnectingInstructions.txt
+Monitoring Usage: myqueue
+
+## Submit Jobs
+
+Users execute workloads through the cluster's workload scheduler, with submission limits based on assigned quotas (viewable via myinfo).
+
+Method 1: sbatch (Recommended)
+The sbatch command executes shell scripts (.sh files) when cluster resources become available, with optional email notifications.
+
+Important: Files written to /tmp/ may be inaccessible after job completion. Use scratch directories or home directories instead.
+
+```
+chmod +x <filepath>/shellscript.sh
+sbatch /path/to/sh/file.sh
+```
+
+SBATCH Parameters:
+- --job-name: Job identifier (no spaces), format <jobid>.log
+- --partition: Partition assignment (e.g., project)
+- --mail-type: Notification timing (ALL, BEGIN, END, FAIL)
+- --mail-user: Email address
+- --time: Maximum runtime (HH:MM:SS)
+- --nodes: Number of nodes (Integer)
+- --cpus-per-task: CPU count (Integer)
+- --mem: Memory requirement ((Integer)GB)
+- --gres: GPU assignment (gpu:(Integer))
+- --output: Log file location
+
+No GPUs are assigned unless explicitly requested via --gres.
+
+Method 2: srun
+Runs interactively, directing output to terminal. Not recommended for lengthy jobs since disconnection terminates execution. Typically used within sbatch scripts.
+srun --partition=normal --nodes=1 --cpus-per-task=30 --mem=2GB /path/to/script.py
+
+Job Queue Management:
+- myqueue: View job status
+- scancel <JOBID>: Cancel specific job
+- scancel --me: Cancel all user jobs
+- scontrol show jobid <jobid>: View running/pending job details
+- sacct --job=<jobid> --format=JobID,User,Jobname,partition,state,time,start,end,elapsed,AllocTRES%45: View completed job history by ID
+- sacct --name=<jobname> --format=JobID,User,Jobname,partition,state,time,start,end,elapsed,AllocTRES%45: View completed job history by name
+- sacct --starttime $(date -d '1 day ago' +"%Y-%m-%d") --format=JobID,User,Jobname,partition,state,time,start,end,elapsed,AllocTRES%45: View jobs from past N days
+
+Job detail commands only retrieve currently pending/running jobs or those completed within 5 minutes.
+
+## Execute Notebook
+
+The `execnotebook` command runs Jupyter notebooks for up to 24 hours without maintaining an active connection. Checkpoint your work to prevent data loss.
+
+Prerequisites:
+- Must have previously run mynotebook
+- The .ipynb file must not be stored in the scratch directory (must be in home directory)
+
+Constraints:
+- Maximum runtime: 24 hours
+- Do not access or modify the notebook file until execution completes
+
+Usage:
+1. Run execnotebook on the cluster
+2. Provide the notebook filename
+3. Enter your SMU email address
+4. Select framework: TensorFlow, PyTorch, or Python 3.11.7
+5. Choose whether to overwrite the existing notebook
+6. Specify GPU requirements
+7. Submit the job
+8. Monitor via myqueue
+
+Output File Naming (when overwriting): nameofnotebook.output.ddmmyyyyHHMMSS.ipynb
+
+Troubleshooting: If your job remains pending, run myinfo to check your concurrent job entitlements.
+
+## Shell Script Generator
+
+A form-based tool at https://violet.scis.dev/docs/generateshell for generating shell scripts for job submission.
+
+Note: There are no input checks -- if the input for CPU is 99 cores, a script requesting 99 cores will be generated. Check your assigned resources with myinfo.
+
+Configurable Parameters:
+- Environment: conda or pip3
+- Partition: Your assigned partition
+- Account: Your assigned account
+- QOS: Your assigned QOS level
+- Nodes: Number of nodes requested
+- CPUs: Number of CPU cores
+- Memory: Amount in gigabytes
+- GPUs: Number of GPUs
+- Job Duration: Time limit (days, hours, minutes)
+- Email: Notification recipient
+- Notification Triggers: Begin, End, or Fail events
+- Job Name: Custom job identifier
+- Modules: Pre-loaded modules (e.g., Python/3.11.7)
+- Virtual Environment: Name and whether it already exists
+- Packages: Required packages for execution
+
+## FAQ
+
+### Command Line Is Slow
+When there is a high amount of IO operations on the cluster, the system responds slower. Operations like file listing or copying may take longer during peak usage.
+
+### Login and Access Issues
+
+General Login Problems -- Verify these prerequisites:
+- ClearPass installed with Healthy Status
+- Connected to WLAN-SMU WiFi network
+- No external VPN services active
+
+Remote Access: To access the GPU cluster outside the SMU network, connect to the SMU VPN (Cisco). Contact your instructor if you don't have VPN credentials.
+
+Initial Password Change: First-time users are prompted to change their password. Enter the temporary password provided by your instructor when prompted for the "old" password.
+
+### GPU Detection Problems
+GPUs only become available when scripts execute through the job scheduler. See the job submission guides for proper execution procedures.
+
+### Job Execution Troubleshooting
+
+Jobs Not Running: Run `squeue --me` to check job status. A state of PD indicates queuing due to resource constraints.
+
+Job Failures -- Common causes:
+- Resource competition from other cluster jobs
+- Inaccessible file paths in scripts
+- Missing Python library installations
+- Non-executable template files
+- Unloaded required modules (TensorFlow/PyTorch)
+
+### Additional Support
+Post questions on the GitHub forum using the format: [AccountName] <Issue Description> with relevant details and .out files.
+
+## Quick Reference
+
+Essential Commands:
+- ssh <accountname>@origami.smu.edu.sg: Connect to cluster
+- myinfo: View account details, partition, QOS
+- myqueue: Check job status
+- mynotebook: Provision Jupyter notebook (6 hour limit)
+- execnotebook: Run notebook headlessly (24 hour limit)
+- sbatch <script.sh>: Submit batch job
+- scancel <jobid>: Cancel job
+- scancel --me: Cancel all your jobs
+- module list: View loaded modules
+- module load <name>: Load a module
+- module purge: Clear all modules
+- passwd: Change password
+- squeue --me: Check your queued jobs
+- whichgpu: Display assigned GPU info
+
+File Transfer:
+- scp <file> <user>@origami.smu.edu.sg:~: Upload file
+- scp <user>@origami.smu.edu.sg:~/file .: Download file
+- git clone <repo>: Clone repository to cluster
+
+Resource Limits (by QOS):
+- student: 4 CPU, 16GB RAM, 1 GPU, 1 day
+- project: 30 CPU, 30GB RAM, 1 GPU, 1 day
+- research-1-qos: 10 CPU, 128GB RAM, 2 GPU, 5 days
+- priority: Unlimited, 5 days
+
+Common sbatch Parameters:
+- --partition=<name>: Target partition
+- --account=<name>: Your account
+- --qos=<name>: Quality of service
+- --gres=gpu:1: Request 1 GPU
+- --mem=16GB: Request memory
+- --cpus-per-task=4: Request CPUs
+- --time=1-00:00:00: Set time limit (1 day)
+- --mail-user=<email>: Email notifications
+- --mail-type=ALL: Notify on all events
+- --constraint=a40: Require specific GPU
+- --prefer=a40: Prefer specific GPU
+- --requeue: Auto-resubmit if preempted
+
+SSH Tunnel for Jupyter:
+ssh -N -vv -L <port>:<nodename>:<port> <user>@origami.smu.edu.sg
