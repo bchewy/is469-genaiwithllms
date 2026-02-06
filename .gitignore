@@ -17,9 +17,10 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
+# HuggingFace / datasets cache
+.cache/
+datasets/
+
 # OS
 .DS_Store
 Thumbs.db
-
-# HuggingFace cache
-.cache/
