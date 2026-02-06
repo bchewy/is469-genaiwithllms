@@ -1,0 +1,25 @@
+# SLURM job output logs
+*.out
+
+# Virtual environments
+.venv/
+is469-venv/
+myenv/
+
+# Model artifacts
+finetune_output/
+*.pt
+*.bin
+*.safetensors
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# HuggingFace cache
+.cache/
